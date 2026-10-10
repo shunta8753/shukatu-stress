@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { useGame } from '../game/GameContext';
 import { validateKana, validateName } from '../game/validators';
+import type { Persona } from '../game/personas';
+import PersonaPicker from '../components/PersonaPicker';
 
 const UNIVERSITIES = [
   '青葉大学', '青葉学院大学', '桜ヶ丘大学', '緑川大学', '東都大学', '東都学院大学', '東都工科大学',
@@ -38,7 +40,7 @@ const OPT_INS = [
 type Phase = 'form' | 'confirm' | 'mail';
 
 export default function Register() {
-  const { go, addStress, setName, toast } = useGame();
+  const { state, go, addStress, setName, setMeta, toast } = useGame();
   const [phase, setPhase] = useState<Phase>('form');
   const [f, setF] = useState({ name: '', kana: '', tel: '', email: '', email2: '', password: '' });
   const [univQuery, setUnivQuery] = useState('');
@@ -48,6 +50,18 @@ export default function Register() {
   const [optIns, setOptIns] = useState(OPT_INS.map(() => true));
   const [error, setError] = useState<string | null>(null);
   const [pwRevealed, setPwRevealed] = useState(0);
+
+  const quickFill = (p: Persona) => {
+    setF({ name: p.name, kana: p.kana, tel: p.tel, email: p.email, email2: p.email, password: p.password });
+    setUniv(p.univ);
+    setUnivOther(p.univOther);
+    setUnivQuery('');
+    setAgree(true);
+    setOptIns(OPT_INS.map(() => true));
+    setError(null);
+    setMeta('persona', p.id);
+    toast(`「${p.label}」の内容を入力しました（※お知らせ配信はすべて「受け取る」になっています）`);
+  };
 
   const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setF((prev) => ({ ...prev, [k]: e.target.value }));
@@ -171,6 +185,13 @@ export default function Register() {
         <span>2. 入力内容の確認</span>
         <span>3. 仮登録完了</span>
       </div>
+
+      <PersonaPicker
+        title="かんたん入力：キャラを選ぶとワンクリックで全項目が入力されます"
+        note="※入力後、下の「入力内容を確認する」を押してください。自分で入力することもできます（おすすめしません）。"
+        selected={state.meta.persona}
+        onPick={quickFill}
+      />
 
       {error && (
         <div className="error-box" role="alert">

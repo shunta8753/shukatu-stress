@@ -2,6 +2,8 @@
 import { useGame } from '../game/GameContext';
 import { ES_TEMPLATES, countChars } from '../game/esTemplates';
 import Modal from '../components/Modal';
+import PersonaPicker from '../components/PersonaPicker';
+import type { Persona } from '../game/personas';
 
 const QUESTIONS = [
   { title: '学生時代に最も力を入れて取り組んだことを教えてください。', min: 400, max: 500 },
@@ -11,21 +13,68 @@ const QUESTIONS = [
 
 const SESSION_SECONDS = 180;
 
-function checkAnswer(text: string, q: (typeof QUESTIONS)[number]): string | null {
+type FixKind = 'kishu' | 'emoji' | 'onsha' | 'short' | 'long';
+interface EsError {
+  msg: string;
+  fix?: FixKind;
+}
+
+const FIX_LABEL: Record<FixKind, string> = {
+  kishu: '🔧 機種依存文字を自動変換する',
+  emoji: '🔧 絵文字を削除する',
+  onsha: '🔧 「御社」を「貴社」に一括置換する',
+  short: '🔧 それっぽい一文で水増しする',
+  long: '🔧 はみ出た分を末尾から削る',
+};
+
+const FILLERS = [
+  'この経験を糧に、今後も何事にも全力で取り組んでまいります。',
+  '以上が、私の考えです。',
+  '（※この一文は自動で水増しされました）',
+];
+
+function checkAnswer(text: string, q: (typeof QUESTIONS)[number]): EsError | null {
   const n = countChars(text);
-  if (!text.trim()) return '入力してください。';
-  if (/[①-⑳㈱㈲№㍉㌔]/.test(text)) return '機種依存文字（①、②など）は使用できません。';
-  if (/\p{Extended_Pictographic}/u.test(text)) return '絵文字は使用できません。';
-  if (/御社/.test(text)) return '書き言葉では「御社」ではなく「貴社」を使用してください。';
-  if (n < q.min) return `${q.min}文字以上で入力してください。（現在${n}文字）`;
-  if (n > q.max) return `${q.max}文字以内で入力してください。（現在${n}文字）`;
+  if (!text.trim()) return { msg: '入力してください。（上の「かんたん入力」か「例文を使用する」が使えます）' };
+  if (/[①-⑳㈱㈲№㍉㌔]/.test(text)) return { msg: '機種依存文字（①、②など）は使用できません。', fix: 'kishu' };
+  if (/\p{Extended_Pictographic}/u.test(text)) return { msg: '絵文字は使用できません。', fix: 'emoji' };
+  if (/御社/.test(text)) return { msg: '書き言葉では「御社」ではなく「貴社」を使用してください。', fix: 'onsha' };
+  if (n < q.min) return { msg: `${q.min}文字以上で入力してください。（現在${n}文字）`, fix: 'short' };
+  if (n > q.max) return { msg: `${q.max}文字以内で入力してください。（現在${n}文字）`, fix: 'long' };
   return null;
 }
 
+function applyFix(text: string, fix: FixKind, q: (typeof QUESTIONS)[number]): string {
+  switch (fix) {
+    case 'kishu':
+      return text
+        .replace(/[①-⑳]/g, (c) => `(${c.charCodeAt(0) - 0x2460 + 1})`)
+        .replace(/㈱/g, '(株)')
+        .replace(/㈲/g, '(有)')
+        .replace(/№/g, 'No.')
+        .replace(/㍉/g, 'ミリ')
+        .replace(/㌔/g, 'キロ');
+    case 'emoji':
+      return text.replace(/\p{Extended_Pictographic}|️|‍/gu, '');
+    case 'onsha':
+      return text.replaceAll('御社', '貴社');
+    case 'short': {
+      let t = text;
+      for (let i = 0; countChars(t) < q.min && i < 30; i++) t += FILLERS[i % FILLERS.length];
+      return t;
+    }
+    case 'long': {
+      const chars = [...text];
+      while (countChars(chars.join('')) > q.max) chars.pop();
+      return chars.join('');
+    }
+  }
+}
+
 export default function EntrySheet() {
-  const { go, complete, addStress, addChars, toast } = useGame();
+  const { state, go, complete, addStress, addChars, toast, setMeta } = useGame();
   const [answers, setAnswers] = useState(['', '', '']);
-  const [errors, setErrors] = useState<(string | null)[]>([null, null, null]);
+  const [errors, setErrors] = useState<(EsError | null)[]>([null, null, null]);
   const [remain, setRemain] = useState(SESSION_SECONDS);
   const [expired, setExpired] = useState(false);
   const [confirming, setConfirming] = useState(false);
@@ -48,6 +97,21 @@ export default function EntrySheet() {
   const applyTemplate = (i: number) => {
     update(i, ES_TEMPLATES[i]);
     toast('例文を挿入しました（※同じ例文を使用している応募者：18,402人）');
+  };
+
+  const quickFill = (p: Persona) => {
+    setAnswers([...p.es]);
+    setErrors([null, null, null]);
+    setMeta('persona', p.id);
+    toast(`「${p.label}」のESを入力しました。提出前にチェックしてみましょう`);
+  };
+
+  const fixAnswer = (i: number, fix: FixKind) => {
+    const fixed = applyFix(answers[i], fix, QUESTIONS[i]);
+    update(i, fixed);
+    setErrors((es) => es.map((e, j) => (j === i ? checkAnswer(fixed, QUESTIONS[i]) : e)));
+    addStress(1, '自動修正に頼った');
+    toast(fix === 'short' ? '文章を水増ししました（内容は薄くなりました）' : '自動修正しました');
   };
 
   const tempSave = () => {
@@ -91,6 +155,14 @@ export default function EntrySheet() {
           <li>提出後の修正はできません。</li>
         </ul>
 
+        <PersonaPicker
+          compact
+          title="かんたん入力：キャラのESを3問まとめて入力"
+          note="※各キャラのESには、提出前チェックで引っかかる箇所が1つずつあります。エラーはボタンで自動修正できます。"
+          selected={state.meta.persona}
+          onPick={quickFill}
+        />
+
         {QUESTIONS.map((q, i) => {
           const n = countChars(answers[i]);
           const bad = n > 0 && (n < q.min || n > q.max);
@@ -114,7 +186,16 @@ export default function EntrySheet() {
                   {n} / {q.max}文字
                 </span>
               </div>
-              {errors[i] && <p className="field-error">{errors[i]}</p>}
+              {errors[i] && (
+                <div className="field-error-row">
+                  <p className="field-error">{errors[i]!.msg}</p>
+                  {errors[i]!.fix && (
+                    <button className="btn btn-fix" onClick={() => fixAnswer(i, errors[i]!.fix!)}>
+                      {FIX_LABEL[errors[i]!.fix!]}
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           );
         })}

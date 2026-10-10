@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useGame } from '../game/GameContext';
 import { validateKana, validateName } from '../game/validators';
 import Modal from '../components/Modal';
+import PersonaPicker from '../components/PersonaPicker';
 
 type Status = 'open' | 'closed' | 'limited' | 'soon';
 interface Course {
@@ -51,7 +52,7 @@ const YEARS = Array.from({ length: 71 }, (_, i) => 1940 + i);
 type Flow = null | 'pre' | 'mypage' | 'issued';
 
 export default function CompanyEntry() {
-  const { go, complete, addStress, toast } = useGame();
+  const { state, go, complete, addStress, toast, setMeta } = useGame();
   const [tab, setTab] = useState<'course' | 'intern'>('course');
   const [onlyOpen, setOnlyOpen] = useState(false);
   const [flow, setFlow] = useState<Flow>(null);
@@ -189,6 +190,16 @@ export default function CompanyEntry() {
             <br />
             <span className="tiny-note">※まいにちナビのご登録情報は引き継がれません。お手数ですが再度ご入力ください。</span>
           </p>
+          <PersonaPicker
+            compact
+            title="かんたん入力（引き継ぎはできませんが、コピペは自由です）"
+            selected={state.meta.persona}
+            onPick={(p) => {
+              setForm({ name: p.name, kana: p.kana, year: p.birth[0], month: p.birth[1], day: p.birth[2] });
+              setFormError(null);
+              setMeta('persona', p.id);
+            }}
+          />
           {formError && <div className="error-box small">{formError}</div>}
           <div className="form compact">
             <div className="form-row">

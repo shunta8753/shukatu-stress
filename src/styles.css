@@ -402,6 +402,34 @@ textarea { resize: vertical; line-height: 1.7; min-height: 150px; }
 .bd-amount { color: var(--red); font-weight: 800; float: right; }
 .result-actions { display: flex; flex-direction: column; gap: 10px; align-items: center; margin: 24px 0 8px; }
 
+/* ===== Persona (かんたん入力) ===== */
+.persona-picker { background: #fffaf2; border: 2px dashed #f5b86b; border-radius: var(--radius); padding: 14px 16px; margin-bottom: 16px; }
+.persona-picker.compact { padding: 10px 12px; }
+.persona-title { margin: 0 0 10px; font-weight: 800; color: var(--orange-dark); }
+.persona-list { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.persona {
+  display: flex; align-items: center; gap: 10px; text-align: left; background: #fff;
+  border: 2px solid var(--line); border-radius: 8px; padding: 10px 12px; transition: border-color 0.15s, transform 0.1s, box-shadow 0.15s;
+}
+.persona:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+.persona-seito:hover, .persona-seito.on { border-color: var(--blue); }
+.persona-chokkyu:hover, .persona-chokkyu.on { border-color: var(--red); }
+.persona-neta:hover, .persona-neta.on { border-color: #9b4dca; }
+.persona.on { background: #f7faff; box-shadow: 0 0 0 3px rgba(42,100,197,0.12); }
+.persona-icon { font-size: 28px; line-height: 1; flex-shrink: 0; }
+.compact .persona-icon { font-size: 22px; }
+.persona-text { display: flex; flex-direction: column; min-width: 0; }
+.persona-label { font-size: 11px; font-weight: 800; color: #fff; border-radius: 3px; padding: 0 6px; width: fit-content; }
+.persona-seito .persona-label { background: var(--blue); }
+.persona-chokkyu .persona-label { background: var(--red); }
+.persona-neta .persona-label { background: #9b4dca; }
+.persona-name { font-weight: 800; font-size: 15px; }
+.persona-catch { font-size: 11px; color: var(--sub); line-height: 1.4; }
+.field-error-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 4px; }
+.field-error-row .field-error { margin: 0; }
+.btn-fix { background: #fff4e5; color: var(--orange-dark); border-color: #f5b86b; padding: 4px 12px; font-size: 12px; }
+.btn-fix:hover { background: var(--orange); color: #fff; }
+
 /* ===== Responsive ===== */
 @media (max-width: 900px) {
   .dash-grid { grid-template-columns: 1fr; }
@@ -416,6 +444,7 @@ textarea { resize: vertical; line-height: 1.7; min-height: 150px; }
   .result-status { font-size: 44px; }
   .course { flex-direction: column; align-items: stretch; }
   .site-header { position: static; }
+  .persona-list { grid-template-columns: 1fr; }
   .session-timer { top: env(safe-area-inset-top, 0px); }
   .page-title { font-size: 17px; }
 }
